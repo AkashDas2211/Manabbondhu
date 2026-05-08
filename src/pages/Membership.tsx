@@ -1,6 +1,7 @@
 import { useState } from 'react';
-import { CheckCircle, AlertCircle, UserPlus } from 'lucide-react';
+import { CheckCircle, AlertCircle, UserPlus, Upload, Loader } from 'lucide-react';
 import { supabase } from '../lib/supabase';
+import IDCardDownload from '../components/IDCardDownload';
 
 interface MembershipForm {
   full_name: string;
@@ -32,12 +33,60 @@ const initialForm: MembershipForm = {
 
 export default function Membership() {
   const [form, setForm] = useState<MembershipForm>(initialForm);
+  const [photoFile, setPhotoFile] = useState<File | null>(null);
+  const [photoPreview, setPhotoPreview] = useState('');
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
+  const [successMember, setSuccessMember] = useState<any>(null);
   const [error, setError] = useState('');
+  const [uploading, setUploading] = useState(false);
 
   function updateField(field: keyof MembershipForm, value: string) {
     setForm((prev) => ({ ...prev, [field]: value }));
+  }
+
+  function handlePhotoChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (file) {
+      if (file.size > 5 * 1024 * 1024) {
+        setError('Photo must be less than 5MB');
+        return;
+      }
+      setPhotoFile(file);
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        setPhotoPreview(event.target?.result as string);
+      };
+      reader.readAsDataURL(file);
+      setError('');
+    }
+  }
+
+  async function uploadPhoto(memberId: string): Promise<string | null> {
+    if (!photoFile) return null;
+
+    try {
+      setUploading(true);
+      const fileExt = photoFile.name.split('.').pop();
+      const fileName = `${memberId}-${Date.now()}.${fileExt}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from('member-photos')
+        .upload(`members/${fileName}`, photoFile);
+
+      if (uploadError) throw uploadError;
+
+      const { data: urlData } = supabase.storage
+        .from('member-photos')
+        .getPublicUrl(`members/${fileName}`);
+
+      return urlData.publicUrl;
+    } catch (err) {
+      console.error('Photo upload failed:', err);
+      return null;
+    } finally {
+      setUploading(false);
+    }
   }
 
   async function handleSubmit(e: React.FormEvent) {
@@ -45,7 +94,7 @@ export default function Membership() {
     setLoading(true);
     setError('');
 
-    const { error: dbError } = await supabase
+    const { data: insertedData, error: dbError } = await supabase
       .from('members')
       .insert([{
         full_name: form.full_name,
@@ -59,7 +108,9 @@ export default function Membership() {
         occupation: form.occupation,
         membership_type: form.membership_type,
         why_join: form.why_join,
-      }]);
+        photo_url: '',
+      }])
+      .select();
 
     if (dbError) {
       setError(dbError.message || 'Failed to submit membership form. Please try again.');
@@ -67,8 +118,21 @@ export default function Membership() {
       return;
     }
 
+    const memberId = insertedData?.[0]?.id;
+
+    if (memberId && photoFile) {
+      const photoUrl = await uploadPhoto(memberId);
+      if (photoUrl) {
+        await supabase.from('members').update({ photo_url: photoUrl }).eq('id', memberId);
+        insertedData[0].photo_url = photoUrl;
+      }
+    }
+
     setSuccess(true);
+    setSuccessMember(insertedData?.[0]);
     setForm(initialForm);
+    setPhotoFile(null);
+    setPhotoPreview('');
     setLoading(false);
   }
 
@@ -93,7 +157,7 @@ export default function Membership() {
       {/* Form Section */}
       <section className="py-24 bg-[#0a0f0d]">
         <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8">
-          {success ? (
+          {success && successMember ? (
             <div className="text-center py-16">
               <div className="w-20 h-20 mx-auto rounded-full bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center mb-6">
                 <CheckCircle className="w-10 h-10 text-emerald-400" />
@@ -102,6 +166,12 @@ export default function Membership() {
               <p className="mt-3 text-gray-400 max-w-md mx-auto">
                 Thank you for your interest in joining Manabbondhu. We will review your application and get back to you soon.
               </p>
+
+              <div className="mt-8 bg-gray-900/50 rounded-xl border border-gray-800 p-8">
+                <h3 className="text-lg font-bold text-white mb-4">Your Membership ID Card</h3>
+                <IDCardDownload member={successMember} />
+              </div>
+
               <button
                 onClick={() => setSuccess(false)}
                 className="mt-8 px-6 py-3 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-semibold rounded-xl transition-all"
@@ -129,6 +199,58 @@ export default function Membership() {
               )}
 
               <form onSubmit={handleSubmit} className="space-y-6">
+                {/* Photo Upload */}
+                <div>
+                  <h3 className="text-sm font-semibold text-emerald-400 uppercase tracking-wider mb-4">Profile Photo</h3>
+                  <div className="grid sm:grid-cols-2 gap-6">
+                    {/* Upload Area */}
+                    <div>
+                      <label className="block text-sm font-medium text-gray-400 mb-2">Photo (JPG, PNG - Max 5MB)</label>
+                      <label className="flex items-center justify-center px-4 py-8 rounded-xl border-2 border-dashed border-gray-700 hover:border-emerald-500/50 cursor-pointer transition-colors">
+                        <div className="text-center">
+                          <Upload className="w-8 h-8 text-gray-500 mx-auto mb-2" />
+                          <span className="text-sm text-gray-400">Click to upload photo</span>
+                          <span className="text-xs text-gray-600 mt-1 block">or drag and drop</span>
+                        </div>
+                        <input
+                          type="file"
+                          accept="image/jpeg,image/png"
+                          onChange={handlePhotoChange}
+                          className="hidden"
+                        />
+                      </label>
+                    </div>
+
+                    {/* Preview */}
+                    <div>
+                      <label className="block text-sm font-medium text-gray-400 mb-2">Preview</label>
+                      {photoPreview ? (
+                        <div className="relative">
+                          <img
+                            src={photoPreview}
+                            alt="Preview"
+                            className="w-full h-40 object-cover rounded-xl border border-emerald-500/30"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setPhotoFile(null);
+                              setPhotoPreview('');
+                            }}
+                            className="absolute top-2 right-2 px-2 py-1 bg-red-600 hover:bg-red-700 text-white text-xs rounded transition-colors"
+                          >
+                            Remove
+                          </button>
+                        </div>
+                      ) : (
+                        <div className="w-full h-40 rounded-xl border border-gray-800 bg-gray-900/50 flex items-center justify-center">
+                          <p className="text-sm text-gray-600">No photo selected</p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
                 {/* Personal Info */}
                 <div>
                   <h3 className="text-sm font-semibold text-emerald-400 uppercase tracking-wider mb-4">Personal Information</h3>
@@ -265,11 +387,11 @@ export default function Membership() {
 
                 <button
                   type="submit"
-                  disabled={loading}
+                  disabled={loading || uploading}
                   className="w-full flex items-center justify-center gap-2 px-8 py-4 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 disabled:from-emerald-800 disabled:to-teal-800 text-white font-semibold rounded-xl shadow-lg shadow-emerald-500/25 transition-all"
                 >
-                  {loading ? (
-                    <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                  {loading || uploading ? (
+                    <Loader className="w-5 h-5 animate-spin" />
                   ) : (
                     <>
                       <UserPlus className="w-5 h-5" />
