@@ -1,7 +1,6 @@
 import { useState } from 'react';
 import { CheckCircle, AlertCircle, UserPlus, Upload, Loader } from 'lucide-react';
 import { supabase } from '../lib/supabase';
-import IDCardDownload from '../components/IDCardDownload';
 
 interface MembershipForm {
   full_name: string;
@@ -163,18 +162,19 @@ export default function Membership() {
                 <CheckCircle className="w-10 h-10 text-emerald-400" />
               </div>
               <h2 className="text-2xl font-bold text-white">Application Submitted!</h2>
-              <p className="mt-3 text-gray-400 max-w-md mx-auto">
+              <p className="mt-3 text-gray-400 max-w-md mx-auto mb-6">
                 Thank you for your interest in joining Manabbondhu. We will review your application and get back to you soon.
               </p>
 
-              <div className="mt-8 bg-gray-900/50 rounded-xl border border-gray-800 p-8">
-                <h3 className="text-lg font-bold text-white mb-4">Your Membership ID Card</h3>
-                <IDCardDownload member={successMember} />
+              <div className="bg-blue-500/10 border border-blue-500/20 rounded-xl p-4 mb-8">
+                <p className="text-sm text-blue-400">
+                  Your ID card will be available in the admin panel once your application is approved.
+                </p>
               </div>
 
               <button
                 onClick={() => setSuccess(false)}
-                className="mt-8 px-6 py-3 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-semibold rounded-xl transition-all"
+                className="px-6 py-3 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-semibold rounded-xl transition-all"
               >
                 Submit Another Application
               </button>

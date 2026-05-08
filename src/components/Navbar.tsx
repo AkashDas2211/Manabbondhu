@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Menu, X, Heart, Shield } from 'lucide-react';
+import { Menu, X, Shield } from 'lucide-react';
 
 export default function Navbar() {
   const [isOpen, setIsOpen] = useState(false);
@@ -33,15 +33,17 @@ export default function Navbar() {
     >
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16 md:h-20">
-          <Link to="/" className="flex items-center gap-2 group">
-            <div className="w-10 h-10 bg-gradient-to-br from-emerald-500 to-teal-600 rounded-xl flex items-center justify-center shadow-lg shadow-emerald-500/20 group-hover:shadow-emerald-500/40 transition-shadow">
-              <Heart className="w-5 h-5 text-white" fill="white" />
-            </div>
+          <Link to="/" className="flex items-center gap-3 group">
+            <img
+              src="/mblogo-removebg-preview.png"
+              alt="Manabbondhu Logo"
+              className="h-10 w-auto"
+            />
             <div>
-              <span className="text-xl font-bold tracking-tight text-white">
+              <span className="text-xl font-bold tracking-tight text-white hidden sm:block">
                 Manabbondhu
               </span>
-              <span className="block text-[10px] tracking-widest uppercase text-emerald-400">
+              <span className="block text-[10px] tracking-widest uppercase text-emerald-400 hidden sm:block">
                 NGO
               </span>
             </div>

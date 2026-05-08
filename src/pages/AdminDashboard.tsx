@@ -2,7 +2,8 @@ import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../lib/supabase';
-import { LogOut, Users, MessageSquare, CheckCircle, XCircle, Clock, Shield, ChevronDown, Search, UserCog, LayoutDashboard, Image, Save, Plus, Trash2, CreditCard as Edit3, X } from 'lucide-react';
+import { LogOut, Users, MessageSquare, CheckCircle, XCircle, Clock, Shield, ChevronDown, Search, UserCog, LayoutDashboard, Image, Save, Plus, Trash2, Download, CreditCard as Edit3, X } from 'lucide-react';
+import IDCardDownload from '../components/IDCardDownload';
 
 type Tab = 'content' | 'gallery' | 'members' | 'messages' | 'users';
 
@@ -79,6 +80,7 @@ export default function AdminDashboard() {
   const [saveMessage, setSaveMessage] = useState('');
   const [editingImage, setEditingImage] = useState<GalleryImage | null>(null);
   const [newImage, setNewImage] = useState({ url: '', alt: '', caption: '', section: 'about' });
+  const [selectedMemberForCard, setSelectedMemberForCard] = useState<any>(null);
 
   useEffect(() => {
     if (!loading && (!user || !isAdmin)) {
@@ -559,10 +561,15 @@ export default function AdminDashboard() {
                                 <button onClick={() => updateMemberStatus(member.id, 'approved')} className="px-3 py-1.5 text-xs font-medium text-emerald-400 bg-emerald-500/10 hover:bg-emerald-500/20 rounded-lg transition-colors">Approve</button>
                                 <button onClick={() => updateMemberStatus(member.id, 'rejected')} className="px-3 py-1.5 text-xs font-medium text-red-400 bg-red-500/10 hover:bg-red-500/20 rounded-lg transition-colors">Reject</button>
                               </div>
+                            ) : member.status === 'approved' ? (
+                              <button onClick={() => setSelectedMemberForCard(member)}
+                                className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-emerald-400 bg-emerald-500/10 hover:bg-emerald-500/20 rounded-lg transition-colors">
+                                <Download className="w-3 h-3" /> ID Card
+                              </button>
                             ) : (
-                              <button onClick={() => updateMemberStatus(member.id, member.status === 'approved' ? 'rejected' : 'approved')}
-                                className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-colors ${member.status === 'approved' ? 'text-red-400 bg-red-500/10 hover:bg-red-500/20' : 'text-emerald-400 bg-emerald-500/10 hover:bg-emerald-500/20'}`}>
-                                {member.status === 'approved' ? 'Reject' : 'Approve'}
+                              <button onClick={() => updateMemberStatus(member.id, 'approved')}
+                                className="px-3 py-1.5 text-xs font-medium text-emerald-400 bg-emerald-500/10 hover:bg-emerald-500/20 rounded-lg transition-colors">
+                                Approve
                               </button>
                             )}
                           </td>
@@ -570,6 +577,23 @@ export default function AdminDashboard() {
                       ))}
                     </tbody>
                   </table>
+                </div>
+              </div>
+            )}
+
+            {/* ID Card Modal */}
+            {selectedMemberForCard && (
+              <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4" onClick={() => setSelectedMemberForCard(null)}>
+                <div className="bg-gray-900 rounded-2xl p-8 max-w-md w-full shadow-xl border border-gray-800" onClick={e => e.stopPropagation()}>
+                  <div className="flex items-center justify-between mb-6">
+                    <h3 className="text-lg font-bold text-white">Member ID Card</h3>
+                    <button onClick={() => setSelectedMemberForCard(null)} className="p-1 hover:bg-gray-800 rounded-lg transition-colors">
+                      <X className="w-5 h-5 text-gray-400" />
+                    </button>
+                  </div>
+                  <div className="flex justify-center mb-6">
+                    <IDCardDownload member={selectedMemberForCard} />
+                  </div>
                 </div>
               </div>
             )}
