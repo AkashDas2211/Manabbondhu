@@ -27,6 +27,7 @@ export default function IDCardDownload({ member }: { member: Member }) {
         useCORS: true,
         allowTaint: true,
         backgroundColor: '#ffffff',
+        logging: true,
       });
 
       const imgData = canvas.toDataURL('image/png');

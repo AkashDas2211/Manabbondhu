@@ -33,6 +33,7 @@ interface Member {
   membership_type: string;
   status: string;
   why_join: string;
+  photo_url?: string;
   created_at: string;
 }
 

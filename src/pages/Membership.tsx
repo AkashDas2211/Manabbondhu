@@ -118,17 +118,24 @@ export default function Membership() {
     }
 
     const memberId = insertedData?.[0]?.id;
+    let memberData = insertedData?.[0];
 
     if (memberId && photoFile) {
       const photoUrl = await uploadPhoto(memberId);
       if (photoUrl) {
-        await supabase.from('members').update({ photo_url: photoUrl }).eq('id', memberId);
-        insertedData[0].photo_url = photoUrl;
+        const { data: updated } = await supabase
+          .from('members')
+          .update({ photo_url: photoUrl })
+          .eq('id', memberId)
+          .select();
+        if (updated?.[0]) {
+          memberData = updated[0];
+        }
       }
     }
 
     setSuccess(true);
-    setSuccessMember(insertedData?.[0]);
+    setSuccessMember(memberData);
     setForm(initialForm);
     setPhotoFile(null);
     setPhotoPreview('');
