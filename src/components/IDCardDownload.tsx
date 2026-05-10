@@ -1,7 +1,7 @@
 import { Download } from 'lucide-react';
 import html2canvas from 'html2canvas';
 import jsPDF from 'jspdf';
-import { useRef } from 'react';
+import { useRef, useState, useEffect } from 'react';
 
 interface Member {
   id: string;
@@ -17,17 +17,49 @@ interface Member {
 
 export default function IDCardDownload({ member }: { member: Member }) {
   const cardRef = useRef<HTMLDivElement>(null);
+  const imgRef = useRef<HTMLImageElement>(null);
+  const [base64Photo, setBase64Photo] = useState<string>('');
+  const [isLoading, setIsLoading] = useState(false);
+
+  // Convert image URL to base64 for better PDF rendering
+  async function imageUrlToBase64(url: string): Promise<string> {
+    try {
+      const response = await fetch(url);
+      const blob = await response.blob();
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onloadend = () => resolve(reader.result as string);
+        reader.onerror = reject;
+        reader.readAsDataURL(blob);
+      });
+    } catch (error) {
+      console.error('Failed to convert image to base64:', error);
+      return '';
+    }
+  }
 
   async function downloadIDCard() {
     if (!cardRef.current) return;
 
     try {
+      setIsLoading(true);
+
+      // If photo_url exists and we don't have base64 yet, convert it
+      if (member.photo_url && !base64Photo) {
+        const b64 = await imageUrlToBase64(member.photo_url);
+        setBase64Photo(b64);
+      }
+
+      // Wait a bit to ensure base64 is rendered
+      await new Promise(resolve => setTimeout(resolve, 100));
+
       const canvas = await html2canvas(cardRef.current, {
         scale: 3,
         useCORS: true,
         allowTaint: true,
         backgroundColor: '#ffffff',
-        logging: true,
+        logging: false,
+        imageTimeout: 5000,
       });
 
       const imgData = canvas.toDataURL('image/png');
@@ -41,14 +73,35 @@ export default function IDCardDownload({ member }: { member: Member }) {
       pdf.save(`${member.full_name}-ID-Card.pdf`);
     } catch (error) {
       console.error('Failed to download ID card:', error);
+      alert('Failed to download ID card. Please try again.');
+    } finally {
+      setIsLoading(false);
     }
   }
 
   const membershipDate = new Date(member.created_at);
   const membershipNumber = `MB${membershipDate.getFullYear()}${String(membershipDate.getMonth() + 1).padStart(2, '0')}${String(membershipDate.getDate()).padStart(2, '0')}-${member.id.slice(0, 4).toUpperCase()}`;
 
+  // Pre-load base64 photo if available
+  useEffect(() => {
+    if (member.photo_url && !base64Photo) {
+      imageUrlToBase64(member.photo_url).then(setBase64Photo);
+    }
+  }, [member.photo_url, base64Photo]);
+
   return (
     <div className="space-y-4">
+      {/* Hidden img element to ensure image loads for canvas capture */}
+      {member.photo_url && (
+        <img
+          ref={imgRef}
+          src={base64Photo || member.photo_url}
+          alt="temp"
+          style={{ display: 'none' }}
+          crossOrigin="anonymous"
+        />
+      )}
+
       {/* ID Card Preview - Portrait */}
       <div
         ref={cardRef}
@@ -104,6 +157,7 @@ export default function IDCardDownload({ member }: { member: Member }) {
                 margin: '0 auto',
                 marginBottom: '4px',
               }}
+              crossOrigin="anonymous"
             />
             <div style={{ fontSize: '14px', fontWeight: 'bold', lineHeight: '1.2', marginBottom: '2px' }}>
               MANABBONDHU
@@ -118,9 +172,9 @@ export default function IDCardDownload({ member }: { member: Member }) {
 
           {/* Photo Section */}
           <div style={{ textAlign: 'center', marginBottom: '12px' }}>
-            {member.photo_url ? (
+            {base64Photo || member.photo_url ? (
               <img
-                src={member.photo_url}
+                src={base64Photo || member.photo_url}
                 alt={member.full_name}
                 style={{
                   width: '100px',
@@ -131,6 +185,7 @@ export default function IDCardDownload({ member }: { member: Member }) {
                   boxShadow: '0 4px 12px rgba(0,0,0,0.2)',
                   margin: '0 auto',
                 }}
+                crossOrigin="anonymous"
               />
             ) : (
               <div
@@ -200,10 +255,11 @@ export default function IDCardDownload({ member }: { member: Member }) {
       {/* Download Button */}
       <button
         onClick={downloadIDCard}
-        className="w-full flex items-center justify-center gap-2 px-6 py-3 bg-emerald-600 hover:bg-emerald-500 text-white font-semibold rounded-xl transition-colors"
+        disabled={isLoading}
+        className="w-full flex items-center justify-center gap-2 px-6 py-3 bg-emerald-600 hover:bg-emerald-500 disabled:bg-emerald-800 text-white font-semibold rounded-xl transition-colors"
       >
         <Download className="w-4 h-4" />
-        Download ID Card (PDF)
+        {isLoading ? 'Generating PDF...' : 'Download ID Card (PDF)'}
       </button>
     </div>
   );
